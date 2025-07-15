@@ -1,0 +1,2 @@
+streamlit
+sudoku-mip-solver>=0.2.0
