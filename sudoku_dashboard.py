@@ -232,68 +232,72 @@ def file_input_tab():
 def display_puzzle_and_results():
     """Display puzzle and solution in the right column"""
     if 'current_solver' in st.session_state:
-        solver = st.session_state.current_solver
-        
-        # Display original puzzle
-        st.subheader("Current Puzzle")
-        display_sudoku_board(solver.board, "Puzzle", solver)
-        
-        # Display puzzle statistics
-        col_stat1, col_stat2 = st.columns(2)
-        with col_stat1:
-            clues = count_clues(solver.board)
-            total_cells = len(solver.board) ** 2
-            st.metric("Clues", f"{clues}/{total_cells}")
-        
-        with col_stat2:
-            if 'generated_difficulty' in st.session_state:
-                st.metric("Difficulty", f"{st.session_state.generated_difficulty:.3f}")
-            if 'generation_time' in st.session_state:
-                st.metric("Generation Time", f"{st.session_state.generation_time:.2f}s")
-        
-        # Export options
-        st.subheader("Export Options")
-        col_exp1, col_exp2 = st.columns(2)
-        
-        with col_exp1:
-            puzzle_string = solver.to_string()
-            st.text_area("Puzzle as String", puzzle_string, height=68)
-        
-        with col_exp2:
-            pretty_string = solver.get_pretty_string(solver.board)
-            st.download_button(
-                "📥 Download Puzzle",
-                pretty_string,
-                file_name=f"sudoku_puzzle_{int(time.time())}.txt",
-                mime="text/plain"
-            )
-        
-        # Display solution if available
-        if 'current_solution' in st.session_state:
-            st.subheader("Solution")
-            display_sudoku_board(st.session_state.current_solution, "Solution", solver)
+
+        original_col, solved_col = st.columns(2)
+
+        with original_col:
+
+            solver = st.session_state.current_solver
             
-            # Solution statistics
-            st.subheader("Solution Statistics")
-            col_sol1, col_sol2 = st.columns(2)
-            with col_sol1:
-                st.metric("Solve Time", f"{st.session_state.solve_time:.3f}s")
-            with col_sol2:
-                st.metric("Status", "Solved ✓")
+            # Display original puzzle
+            st.subheader("Current Puzzle")
+            display_sudoku_board(solver.board, "Puzzle", solver)
             
-            # Export solution
-            pretty_solution = solver.get_pretty_string(st.session_state.current_solution)
-            st.download_button(
-                "📥 Download Solution",
-                pretty_solution,
-                file_name=f"sudoku_solution_{int(time.time())}.txt",
-                mime="text/plain"
-            )
+            col1, col2 = st.columns(2)
+            with col1:
+                # Display puzzle statistics
+                clues = count_clues(solver.board)
+                total_cells = len(solver.board) ** 2
+                st.metric("Clues", f"{clues}/{total_cells}")
+            with col2:    
+                if 'generated_difficulty' in st.session_state:
+                    st.metric("Difficulty", f"{st.session_state.generated_difficulty:.3f}")
+                if 'generation_time' in st.session_state:
+                    st.metric("Generation Time", f"{st.session_state.generation_time:.2f}s")
+            
+            # Export options
+            with st.expander("Export Options"):
+                col_exp1, col_exp2 = st.columns(2)
+
+                with col_exp1:
+                    puzzle_string = solver.to_string()
+                    st.text_area("Puzzle as String", puzzle_string, height=68)
+            
+            with col_exp2:
+                pretty_string = solver.get_pretty_string(solver.board)
+                st.download_button(
+                    "📥 Download Puzzle",
+                    pretty_string,
+                    file_name=f"sudoku_puzzle_{int(time.time())}.txt",
+                    mime="text/plain"
+                )
+        with solved_col:
+            # Display solution if available
+            if 'current_solution' in st.session_state:
+                st.subheader("Solution")
+                display_sudoku_board(st.session_state.current_solution, "Solution", solver)
+                
+                # Solution statistics
+                st.subheader("Solution Statistics")
+                col_sol1, col_sol2 = st.columns(2)
+                with col_sol1:
+                    st.metric("Solve Time", f"{st.session_state.solve_time:.3f}s")
+                with col_sol2:
+                    st.metric("Status", "Solved ✓")
+                
+                # Export solution
+                pretty_solution = solver.get_pretty_string(st.session_state.current_solution)
+                st.download_button(
+                    "📥 Download Solution",
+                    pretty_solution,
+                    file_name=f"sudoku_solution_{int(time.time())}.txt",
+                    mime="text/plain"
+                )
+            
+            # Display multiple solutions if available
+            elif 'multiple_solutions' in st.session_state:
+                display_multiple_solutions()
         
-        # Display multiple solutions if available
-        elif 'multiple_solutions' in st.session_state:
-            display_multiple_solutions()
-    
     else:
         st.info("Please generate or input a puzzle using the options on the left")
 
@@ -301,7 +305,7 @@ def display_puzzle_and_results():
 
 # Helper functions
 def count_clues(board):
-    return sum(sum(1 for cell in row if cell != 0) for row in board)
+    return sum(sum(1 for cell in row if cell != None) for row in board)
 
 
 def display_sudoku_board(board, title="Sudoku Board", solver=None):
