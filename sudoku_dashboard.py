@@ -31,39 +31,11 @@ def main():
         
         with tab3:
             solver = file_input_tab()
-        
-        # Solving options (if we have a solver)
-        if solver is not None:
-            st.subheader("Solving Options")
-            
-            # Solution search mode
-            search_mode = st.radio(
-                "Search Mode:",
-                ["Single Solution", "Multiple Solutions"],
-                help="Choose whether to find one solution or search for multiple solutions"
-            )
-            
-            if search_mode == "Single Solution":
-                show_output = st.checkbox("Show Solver Output", value=False)
-                
-                if st.button("🔍 Solve Puzzle", type="primary"):
-                    solve_puzzle_with_options(solver, 1, show_output)
-            
-            else:  # Multiple Solutions
-                max_solutions = st.number_input(
-                    "Maximum Solutions to Find",
-                    min_value=1,
-                    max_value=100,
-                    value=10,
-                    help="Limit the search to avoid excessive computation"
-                )
-                
-                show_output = st.checkbox("Show Solver Output", value=False, key="multi_output")
-                
-                if st.button("🔢 Find Multiple Solutions", type="primary"):
-                    find_multiple_solutions(solver, max_solutions)
     
     with col2:
+        # Solving options (if we have a solver)
+        solve_options_section(solver)
+        
         # Display puzzle and solution
         display_puzzle_and_results()
 
@@ -92,6 +64,40 @@ def get_grid_dimensions(prefix=""):
     st.info(f"Grid size: {grid_size}×{grid_size}")
     
     return sub_grid_width, sub_grid_height
+
+
+def solve_options_section(solver):
+    """Display solving options section"""
+    if solver is None:
+        return
+    
+    st.subheader("Solving Options")
+    
+    # Multiple solutions toggle
+    allow_multiple = st.checkbox(
+        "Allow Multiple Solutions",
+        value=False,
+        help="Search for multiple solutions instead of stopping at the first one"
+    )
+    
+    # Show max solutions input only if multiple solutions is enabled
+    if allow_multiple:
+        max_solutions = st.number_input(
+            "Maximum Solutions:",
+            min_value=1,
+            max_value=100,
+            value=10,
+            help="Limit the search to avoid excessive computation"
+        )
+        
+        # Multiple solutions solve button
+        if st.button("🔢 Find Multiple Solutions", type="primary", key="solve_multiple"):
+            solve_puzzle_with_options(solver, max_solutions, False)
+    
+    else:
+        # Single solution solve button
+        if st.button("🔍 Solve Puzzle", type="primary", key="solve_single"):
+            solve_puzzle_with_options(solver, 1, False)
 
 
 def clear_solution_state():
@@ -455,7 +461,7 @@ def solve_and_display(solver):
 
 
 def solve_puzzle_with_options(solver, max_solutions, show_output):
-    with st.spinner("Solving puzzle..."):
+    with st.spinner("Solving puzzle..." if max_solutions == 1 else f"Finding up to {max_solutions} solutions..."):
         start_time = time.time()
         
         try:
@@ -473,52 +479,31 @@ def solve_puzzle_with_options(solver, max_solutions, show_output):
                 else:
                     st.error("No solution found!")
             else:
-                max_sol = None if max_solutions == "All" else int(max_solutions)
-                solutions = solver.find_all_solutions(max_solutions=max_sol)
+                solutions = solver.find_all_solutions(max_solutions=max_solutions)
                 solve_time = time.time() - start_time
                 
                 st.session_state.current_solver = solver
                 st.session_state.multiple_solutions = solutions
-                st.session_state.solve_time = solve_time
+                st.session_state.multi_solve_time = solve_time
+                st.session_state.multi_solver = solver  # Store the solver for display
                 
-                st.success(f"Found {len(solutions)} solution(s) in {solve_time:.3f} seconds!")
+                if len(solutions) == 0:
+                    st.error("No solutions found!")
+                elif len(solutions) == 1:
+                    st.success(f"Found 1 unique solution in {solve_time:.3f} seconds!")
+                else:
+                    st.success(f"Found {len(solutions)} solutions in {solve_time:.3f} seconds!")
+                    if len(solutions) == max_solutions:
+                        st.warning(f"Reached maximum limit of {max_solutions} solutions. There may be more.")
         
         except Exception as e:
             st.error(f"Error solving puzzle: {str(e)}")
-
-
-def find_multiple_solutions(solver, max_solutions):
-    with st.spinner(f"Finding up to {max_solutions} solutions..."):
-        start_time = time.time()
-        
-        try:
-            solutions = solver.find_all_solutions(max_solutions=max_solutions)
-            solve_time = time.time() - start_time
-            
-            st.session_state.multiple_solutions = solutions
-            st.session_state.multi_solve_time = solve_time
-            st.session_state.multi_solver = solver  # Store the solver for display
-            
-            if len(solutions) == 0:
-                st.error("No solutions found!")
-            elif len(solutions) == 1:
-                st.success(f"Found 1 unique solution in {solve_time:.3f} seconds!")
-            else:
-                st.success(f"Found {len(solutions)} solutions in {solve_time:.3f} seconds!")
-                if len(solutions) == max_solutions:
-                    st.warning(f"Reached maximum limit of {max_solutions} solutions. There may be more.")
-        
-        except Exception as e:
-            st.error(f"Error finding solutions: {str(e)}")
 
 
 def display_multiple_solutions():
     solutions = st.session_state.multiple_solutions
     
     st.subheader(f"Found {len(solutions)} Solution(s)")
-    
-    if len(solutions) > 1:
-        st.warning("This puzzle has multiple solutions - it's not uniquely solvable!")
     
     # Solution selector
     if len(solutions) > 1:
@@ -531,14 +516,8 @@ def display_multiple_solutions():
         selected_solution = 0
     
     if solutions:
-        col_orig, col_sol = st.columns(2)
-        
-        with col_orig:
-            solver = st.session_state.multi_solver
-            display_sudoku_board(solver.board, "Original Puzzle", solver)
-        
-        with col_sol:
-            display_sudoku_board(solutions[selected_solution], f"Solution {selected_solution + 1}", solver)
+        solver = st.session_state.multi_solver
+        display_sudoku_board(solutions[selected_solution], f"Solution {selected_solution + 1}", solver)
         
         # Statistics
         st.subheader("Search Statistics")
