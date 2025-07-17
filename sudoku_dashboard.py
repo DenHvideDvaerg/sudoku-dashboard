@@ -132,7 +132,7 @@ def generate_puzzle_tab():
     
     unique_solution = st.checkbox(
         "Ensure Unique Solution",
-        value=False,
+        value=True,
         help="If checked, ensures the puzzle has exactly one solution"
     )
     
