@@ -94,6 +94,21 @@ def get_grid_dimensions(prefix=""):
     return sub_grid_width, sub_grid_height
 
 
+def clear_solution_state():
+    """Clear solution-related state when loading a new puzzle"""
+    keys_to_clear = [
+        'current_solution',
+        'multiple_solutions',
+        'solve_time',
+        'multi_solve_time',
+        'multi_solver'
+    ]
+    
+    for key in keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
+
+
 def generate_puzzle_tab():
     """Generate puzzle tab content"""
     # Get grid dimensions
@@ -136,6 +151,9 @@ def generate_puzzle_tab():
             try:
                 start_time = time.time()
                 
+                # Clear previous solutions
+                clear_solution_state()
+                
                 seed_val = random_seed if random_seed is not None else None
                 
                 solver, actual_difficulty = SudokuMIPSolver.generate_random_puzzle(
@@ -153,7 +171,8 @@ def generate_puzzle_tab():
                 st.session_state.current_solver = solver
                 st.session_state.generated_difficulty = actual_difficulty
                 st.session_state.generation_time = generation_time
-                
+                st.session_state.string_puzzle_input = solver.to_string()
+
                 st.success(f"Puzzle generated successfully in {generation_time:.2f} seconds!")
                 st.info(f"Actual difficulty: {actual_difficulty:.3f}")
                 
@@ -173,15 +192,42 @@ def string_input_tab():
     """String input tab content"""
     # Get grid dimensions
     sub_grid_width, sub_grid_height = get_grid_dimensions("string_")
+    grid_size = sub_grid_width * sub_grid_height
+
+    # Manual input
+    st.subheader("Manual Input")
+    
+    # Get current value from session state or use empty string
+    current_value = st.session_state.get('string_puzzle_input', '')
     
     puzzle_string = st.text_area(
-        "Enter puzzle string",
-        placeholder="530070000600195000098000060800060003400803001700020006060000280000419005000080079",
-        help="Enter puzzle as a string with 0 for empty cells"
+        "Enter puzzle string:",
+        value=current_value,
+        placeholder=f"Enter {grid_size}x{grid_size} puzzle as a string with 0 for empty cells",
+        help=f"Enter puzzle as a string of {grid_size**2} characters with 0 or . for empty cells",
+        height=100
     )
     
-    if puzzle_string:
+    # Update session state when text changes
+    if puzzle_string != current_value:
+        st.session_state.string_puzzle_input = puzzle_string
+    
+    # Go button
+    col_go1, col_go2 = st.columns([1, 2])
+    with col_go1:
+        go_button = st.button("🚀 Load Puzzle", type="primary", disabled=not puzzle_string.strip())
+    
+    with col_go2:
+        if st.button("🗑️ Clear", help="Clear the input field"):
+            st.session_state.string_puzzle_input = ""
+            st.rerun()
+    
+    # Process puzzle when Go button is clicked or puzzle is loaded
+    if go_button and puzzle_string.strip():
         try:
+            # Clear previous solutions
+            clear_solution_state()
+            
             solver = SudokuMIPSolver.from_string(
                 puzzle_string.strip(),
                 sub_grid_width=sub_grid_width,
@@ -211,6 +257,9 @@ def file_input_tab():
         content = uploaded_file.read().decode('utf-8')
         
         try:
+            # Clear previous solutions
+            clear_solution_state()
+            
             solver = SudokuMIPSolver.from_string(
                 content.strip(),
                 sub_grid_width=sub_grid_width,
@@ -305,7 +354,7 @@ def display_puzzle_and_results():
 
 # Helper functions
 def count_clues(board):
-    return sum(sum(1 for cell in row if cell != None) for row in board)
+    return sum(sum(1 for cell in row if cell != 0 and cell is not None) for row in board)
 
 
 def display_sudoku_board(board, title="Sudoku Board", solver=None):
