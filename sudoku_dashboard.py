@@ -106,8 +106,7 @@ def clear_solution_state():
         'current_solution',
         'multiple_solutions',
         'solve_time',
-        'multi_solve_time',
-        'multi_solver'
+        'multi_solve_time'
     ]
     
     for key in keys_to_clear:
@@ -487,8 +486,6 @@ def solve_puzzle_with_options(solver, max_solutions, show_output):
                     del st.session_state.multiple_solutions
                 if 'multi_solve_time' in st.session_state:
                     del st.session_state.multi_solve_time
-                if 'multi_solver' in st.session_state:
-                    del st.session_state.multi_solver
                 
                 success = solver.solve(show_output=show_output)
                 solve_time = time.time() - start_time
@@ -512,10 +509,12 @@ def solve_puzzle_with_options(solver, max_solutions, show_output):
                 solutions = solver.find_all_solutions(max_solutions=max_solutions)
                 solve_time = time.time() - start_time
                 
+                # Reset the model to remove any cuts added during find_all_solutions
+                solver.reset_model()
+                
                 st.session_state.current_solver = solver
                 st.session_state.multiple_solutions = solutions
                 st.session_state.multi_solve_time = solve_time
-                st.session_state.multi_solver = solver  # Store the solver for display
                 
                 if len(solutions) == 0:
                     st.error("No solutions found!")
@@ -536,7 +535,7 @@ def display_multiple_solutions():
     st.subheader(f"Found {len(solutions)} Solution(s)")
     
     if solutions:
-        solver = st.session_state.multi_solver
+        solver = st.session_state.current_solver
         
         # Create a placeholder for the board that we can update
         board_placeholder = st.empty()
