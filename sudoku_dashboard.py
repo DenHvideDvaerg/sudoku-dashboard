@@ -296,7 +296,7 @@ def display_puzzle_and_results():
             
             # Display original puzzle
             st.subheader("Current Puzzle")
-            display_sudoku_board(solver.board, "Puzzle", solver)
+            display_sudoku_board(solver.board, solver, "Puzzle")
             
             col1, col2 = st.columns(2)
             with col1:
@@ -330,7 +330,7 @@ def display_puzzle_and_results():
             # Display solution if available
             if 'current_solution' in st.session_state:
                 st.subheader("Solution")
-                display_sudoku_board(st.session_state.current_solution, "Solution", solver)
+                display_sudoku_board(st.session_state.current_solution, solver, "Solution")
                 
                 # Solution statistics
                 st.subheader("Solution Statistics")
@@ -363,7 +363,7 @@ def count_clues(board):
     return sum(sum(1 for cell in row if cell != 0 and cell is not None) for row in board)
 
 
-def display_sudoku_board(board, title="Sudoku Board", solver=None):
+def display_sudoku_board(board, solver, title="Sudoku Board"):
     st.subheader(title)
     
     # Create a styled display of the Sudoku board
@@ -371,16 +371,10 @@ def display_sudoku_board(board, title="Sudoku Board", solver=None):
     st.markdown(board_html, unsafe_allow_html=True)
 
 
-def create_sudoku_html(board, solver=None):
+def create_sudoku_html(board, solver):
     grid_size = len(board)
-    
-    # Try to get sub-grid dimensions from solver, otherwise use square root approximation
-    if solver and hasattr(solver, 'sub_grid_width') and hasattr(solver, 'sub_grid_height'):
-        sub_grid_width = solver.sub_grid_width
-        sub_grid_height = solver.sub_grid_height
-    else:
-        sub_grid_width = int(grid_size ** 0.5)
-        sub_grid_height = sub_grid_width
+    sub_grid_width = solver.sub_grid_width
+    sub_grid_height = solver.sub_grid_height
     
     # Simple CSS that adapts to Streamlit's theme
     html = """
@@ -435,29 +429,6 @@ def create_sudoku_html(board, solver=None):
     
     html += "</table>"
     return html
-
-
-def solve_and_display(solver):
-    with st.spinner("Solving puzzle..."):
-        start_time = time.time()
-        
-        try:
-            success = solver.solve()
-            solve_time = time.time() - start_time
-            
-            if success:
-                solution = solver.get_solution()
-                st.session_state.current_solver = solver
-                st.session_state.current_solution = solution
-                st.session_state.solve_time = solve_time
-                
-                st.success(f"Puzzle solved in {solve_time:.3f} seconds!")
-                display_sudoku_board(solution, "Solution", solver)
-            else:
-                st.error("No solution found for this puzzle!")
-        
-        except Exception as e:
-            st.error(f"Error solving puzzle: {str(e)}")
 
 
 def solve_puzzle_with_options(solver, max_solutions, show_output):
@@ -537,7 +508,7 @@ def display_multiple_solutions():
         
         # Display the selected solution in the placeholder
         with board_placeholder.container():
-            display_sudoku_board(solutions[selected_solution], f"Solution {selected_solution + 1}", solver)
+            display_sudoku_board(solutions[selected_solution], solver, f"Solution {selected_solution + 1}")
         
         # Statistics
         st.subheader("Search Statistics")
