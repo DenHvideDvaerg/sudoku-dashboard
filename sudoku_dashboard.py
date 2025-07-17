@@ -2,7 +2,6 @@ import streamlit as st
 from sudoku_mip_solver import SudokuMIPSolver
 import time
 
-
 def main():
     st.set_page_config(
         page_title="Sudoku Dashboard",
@@ -14,244 +13,402 @@ def main():
     st.title("🧩 Sudoku Dashboard")
     st.markdown("Generate, manipulate, and solve Sudoku puzzles with customizable parameters")
 
-    with st.expander("🎲 Generate Puzzle"):
-        generate_puzzle_page()
-
-    solve_puzzle_page()
-
-
-def generate_puzzle_page():
-    st.header("🎲 Generate Random Puzzle")
-    
+    # Create two main columns
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.subheader("Grid Dimensions")
-        sub_grid_width = st.number_input(
-            "Sub-grid Width", 
-            min_value=2, 
-            max_value=6, 
-            value=3,
-            help="Width of each sub-grid (e.g., 3 for standard 9x9 Sudoku)"
-        )
+        # Input method tabs
+        st.subheader("Input Method")
+        tab1, tab2, tab3 = st.tabs(["🎲 Generate", "📝 String", "📁 File"])
         
-        sub_grid_height = st.number_input(
-            "Sub-grid Height", 
-            min_value=2, 
-            max_value=6, 
-            value=3,
-            help="Height of each sub-grid (e.g., 3 for standard 9x9 Sudoku)"
-        )
+        solver = None
         
-        grid_size = sub_grid_width * sub_grid_height
-        st.info(f"Grid size: {grid_size}×{grid_size}")
+        with tab1:
+            solver = generate_puzzle_tab()
         
-        st.subheader("Puzzle Parameters")
-        difficulty = st.slider(
-            "Difficulty Level",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.75,
-            step=0.05,
-            help="0.0 = easiest (more clues), 1.0 = hardest (fewer clues)"
-        )
+        with tab2:
+            solver = string_input_tab()
         
-        unique_solution = st.checkbox(
-            "Ensure Unique Solution",
-            value=False,
-            help="If checked, ensures the puzzle has exactly one solution"
-        )
-        
-        max_attempts = st.number_input(
-            "Max Generation Attempts",
-            min_value=10,
-            max_value=500,
-            value=100,
-            help="Maximum attempts to generate a puzzle with the specified difficulty"
-        )
-        
-        random_seed = st.number_input(
-            "Random Seed (optional)",
-            min_value=0,
-            max_value=999999,
-            value=None,
-            help="Set a seed for reproducible puzzle generation"
-        )
-        
-        if st.button("🎲 Generate Puzzle", type="primary"):
-            with st.spinner("Generating puzzle..."):
-                try:
-                    start_time = time.time()
-                    
-                    seed_val = random_seed if random_seed is not None else None
-                    
-                    solver, actual_difficulty = SudokuMIPSolver.generate_random_puzzle(
-                        sub_grid_width=sub_grid_width,
-                        sub_grid_height=sub_grid_height,
-                        target_difficulty=difficulty,
-                        unique_solution=unique_solution,
-                        max_attempts=max_attempts,
-                        random_seed=seed_val
-                    )
-                    
-                    generation_time = time.time() - start_time
-                    
-                    # Store in session state
-                    st.session_state.generated_solver = solver
-                    st.session_state.generated_difficulty = actual_difficulty
-                    st.session_state.generation_time = generation_time
-                    
-                    st.success(f"Puzzle generated successfully in {generation_time:.2f} seconds!")
-                    st.info(f"Actual difficulty: {actual_difficulty:.3f}")
-                    
-                except Exception as e:
-                    st.error(f"Error generating puzzle: {str(e)}")
+        with tab3:
+            solver = file_input_tab()
     
     with col2:
-        if 'generated_solver' in st.session_state:
-            st.subheader("Generated Puzzle")
+        # Solving options (if we have a solver)
+        solve_options_section(solver)
+        
+        # Display puzzle and solution
+        display_puzzle_and_results()
+
+def get_grid_dimensions(prefix=""):
+    """Get grid dimensions input from user"""
+    st.subheader("Grid Dimensions")
+    sub_grid_width = st.number_input(
+        "Sub-grid Width", 
+        min_value=2, 
+        max_value=6, 
+        value=3,
+        help="Width of each sub-grid (e.g., 3 for standard 9x9 Sudoku)",
+        key=f"{prefix}sub_grid_width"
+    )
+    
+    sub_grid_height = st.number_input(
+        "Sub-grid Height", 
+        min_value=2, 
+        max_value=6, 
+        value=3,
+        help="Height of each sub-grid (e.g., 3 for standard 9x9 Sudoku)",
+        key=f"{prefix}sub_grid_height"
+    )
+    
+    grid_size = sub_grid_width * sub_grid_height
+    st.info(f"Grid size: {grid_size}×{grid_size}")
+    
+    return sub_grid_width, sub_grid_height
+
+
+def solve_options_section(solver):
+    """Display solving options section"""
+    if solver is None:
+        return
+    
+    st.subheader("Solving Options")
+    
+    # Multiple solutions toggle
+    allow_multiple = st.checkbox(
+        "Allow Multiple Solutions",
+        value=False,
+        help="Search for multiple solutions instead of stopping at the first one"
+    )
+    
+    # Show max solutions input only if multiple solutions is enabled
+    if allow_multiple:
+        max_solutions = st.number_input(
+            "Maximum Solutions:",
+            min_value=1,
+            max_value=100,
+            value=10,
+            help="Limit the search to avoid excessive computation"
+        )
+        
+        # Multiple solutions solve button
+        if st.button("🔢 Find Multiple Solutions", type="primary", key="solve_multiple"):
+            solve_puzzle_with_options(solver, max_solutions, False)
+    
+    else:
+        # Single solution solve button
+        if st.button("🔍 Solve Puzzle", type="primary", key="solve_single"):
+            solve_puzzle_with_options(solver, 1, False)
+
+
+def clear_solution_state():
+    """Clear solution-related state when loading a new puzzle"""
+    keys_to_clear = [
+        'current_solution',
+        'multiple_solutions',
+        'solve_time',
+        'multi_solve_time',
+        'multi_solver'
+    ]
+    
+    for key in keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
+
+
+def generate_puzzle_tab():
+    """Generate puzzle tab content"""
+    # Get grid dimensions
+    sub_grid_width, sub_grid_height = get_grid_dimensions("generate_")
+    
+    st.subheader("Puzzle Parameters")
+    difficulty = st.slider(
+        "Difficulty Level",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.75,
+        step=0.05,
+        help="0.0 = easiest (more clues), 1.0 = hardest (fewer clues)"
+    )
+    
+    unique_solution = st.checkbox(
+        "Ensure Unique Solution",
+        value=True,
+        help="If checked, ensures the puzzle has exactly one solution"
+    )
+    
+    max_attempts = st.number_input(
+        "Max Generation Attempts",
+        min_value=10,
+        max_value=500,
+        value=100,
+        help="Maximum attempts to generate a puzzle with the specified difficulty"
+    )
+    
+    random_seed = st.number_input(
+        "Random Seed (optional)",
+        min_value=0,
+        max_value=999999,
+        value=None,
+        help="Set a seed for reproducible puzzle generation"
+    )
+    
+    if st.button("🎲 Generate Puzzle", type="primary"):
+        with st.spinner("Generating puzzle..."):
+            try:
+                start_time = time.time()
+                
+                # Clear previous solutions
+                clear_solution_state()
+                
+                seed_val = random_seed if random_seed is not None else None
+                
+                solver, actual_difficulty = SudokuMIPSolver.generate_random_puzzle(
+                    sub_grid_width=sub_grid_width,
+                    sub_grid_height=sub_grid_height,
+                    target_difficulty=difficulty,
+                    unique_solution=unique_solution,
+                    max_attempts=max_attempts,
+                    random_seed=seed_val
+                )
+                
+                generation_time = time.time() - start_time
+                
+                # Store in session state
+                st.session_state.current_solver = solver
+                st.session_state.generated_difficulty = actual_difficulty
+                st.session_state.generation_time = generation_time
+                st.session_state.string_puzzle_input = solver.to_string()
+
+                st.success(f"Puzzle generated successfully in {generation_time:.2f} seconds!")
+                st.info(f"Actual difficulty: {actual_difficulty:.3f}")
+                
+                return solver
+                
+            except Exception as e:
+                st.error(f"Error generating puzzle: {str(e)}")
+                return None
+    
+    # Return existing solver if available
+    if 'current_solver' in st.session_state:
+        return st.session_state.current_solver
+    return None
+
+
+def string_input_tab():
+    """String input tab content"""
+    # Get grid dimensions
+    sub_grid_width, sub_grid_height = get_grid_dimensions("string_")
+    grid_size = sub_grid_width * sub_grid_height
+
+    # Manual input
+    st.subheader("Manual Input")
+    
+    # Get current value from session state or use empty string
+    current_value = st.session_state.get('string_puzzle_input', '')
+    
+    puzzle_string = st.text_area(
+        "Enter puzzle string:",
+        value=current_value,
+        placeholder=f"Enter {grid_size}x{grid_size} puzzle as a string with 0 for empty cells",
+        help=f"Enter puzzle as a string of {grid_size**2} characters with 0 or . for empty cells",
+        height=100
+    )
+    
+    # Update session state when text changes
+    if puzzle_string != current_value:
+        st.session_state.string_puzzle_input = puzzle_string
+    
+    # Go button
+    col_go1, col_go2 = st.columns([1, 2])
+    with col_go1:
+        go_button = st.button("🚀 Load Puzzle", type="primary", disabled=not puzzle_string.strip())
+    
+    with col_go2:
+        if st.button("🗑️ Clear", help="Clear the input field"):
+            st.session_state.string_puzzle_input = ""
+            st.rerun()
+    
+    # Process puzzle when Go button is clicked or puzzle is loaded
+    if go_button and puzzle_string.strip():
+        try:
+            # Clear previous solutions
+            clear_solution_state()
             
-            # Display puzzle statistics
-            col2a, col2b, col2c = st.columns(3)
-            with col2a:
-                st.metric("Difficulty", f"{st.session_state.generated_difficulty:.3f}")
-            with col2b:
-                clues = count_clues(st.session_state.generated_solver.board)
-                total_cells = len(st.session_state.generated_solver.board) ** 2
+            solver = SudokuMIPSolver.from_string(
+                puzzle_string.strip(),
+                sub_grid_width=sub_grid_width,
+                sub_grid_height=sub_grid_height
+            )
+            st.session_state.current_solver = solver
+            st.success("Puzzle loaded successfully!")
+            return solver
+        except Exception as e:
+            st.error(f"Error parsing puzzle string: {str(e)}")
+            return None
+    
+    # Return existing solver if available
+    if 'current_solver' in st.session_state:
+        return st.session_state.current_solver
+    return None
+
+
+def file_input_tab():
+    """File input tab content"""
+    # Get grid dimensions
+    sub_grid_width, sub_grid_height = get_grid_dimensions("file_")
+    
+    uploaded_file = st.file_uploader("Choose a puzzle file", type=['txt'])
+    
+    if uploaded_file is not None:
+        content = uploaded_file.read().decode('utf-8')
+        
+        try:
+            # Clear previous solutions
+            clear_solution_state()
+            
+            solver = SudokuMIPSolver.from_string(
+                content.strip(),
+                sub_grid_width=sub_grid_width,
+                sub_grid_height=sub_grid_height
+            )
+            st.session_state.current_solver = solver
+            st.success("Puzzle loaded from file successfully!")
+            return solver
+        except Exception as e:
+            st.error(f"Error parsing file: {str(e)}")
+            return None
+    
+    # Return existing solver if available
+    if 'current_solver' in st.session_state:
+        return st.session_state.current_solver
+    return None
+
+
+def display_puzzle_and_results():
+    """Display puzzle and solution in the right column"""
+    if 'current_solver' in st.session_state:
+
+        original_col, solved_col = st.columns(2)
+
+        with original_col:
+
+            solver = st.session_state.current_solver
+            
+            # Display original puzzle
+            st.subheader("Current Puzzle")
+            display_sudoku_board(solver.board, solver, "Puzzle")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                # Display puzzle statistics
+                clues = count_clues(solver.board)
+                total_cells = len(solver.board) ** 2
                 st.metric("Clues", f"{clues}/{total_cells}")
-            with col2c:
-                st.metric("Generation Time", f"{st.session_state.generation_time:.2f}s")
-            
-            # Display the puzzle
-            display_sudoku_board(st.session_state.generated_solver.board, "Generated Puzzle", st.session_state.generated_solver)
+            with col2:    
+                if 'generated_difficulty' in st.session_state:
+                    st.metric("Difficulty", f"{st.session_state.generated_difficulty:.3f}")
+                if 'generation_time' in st.session_state:
+                    st.metric("Generation Time", f"{st.session_state.generation_time:.2f}s")
             
             # Export options
-            st.subheader("Export Options")
-            col_exp1, col_exp2 = st.columns(2)
-            
-            with col_exp1:
-                puzzle_string = st.session_state.generated_solver.to_string()
-                st.text_area("Puzzle as String", puzzle_string, height=68)
+            with st.expander("Export Options"):
+                col_exp1, col_exp2 = st.columns(2)
+
+                with col_exp1:
+                    puzzle_string = solver.to_string()
+                    st.text_area("Puzzle as String", puzzle_string, height=68)
             
             with col_exp2:
-                pretty_string = st.session_state.generated_solver.get_pretty_string(st.session_state.generated_solver.board)
+                pretty_string = solver.get_pretty_string(solver.board)
                 st.download_button(
                     "📥 Download Puzzle",
                     pretty_string,
                     file_name=f"sudoku_puzzle_{int(time.time())}.txt",
                     mime="text/plain"
                 )
-            
-            # Quick solve option
-            if st.button("🚀 Solve Generated Puzzle"):
-                solve_and_display(st.session_state.generated_solver)
-
-
-def solve_puzzle_page():
-    st.header("🔍 Solve Puzzle")
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        st.subheader("Input Method")
-        input_method = st.radio(
-            "Choose input method:",
-            ["String Input", "File Upload", "Use Generated Puzzle"]
-        )
-        
-        solver = None
-        
-        if input_method == "String Input":
-            st.subheader("Puzzle String")
-            puzzle_string = st.text_area(
-                "Enter puzzle string",
-                placeholder="530070000600195000098000060800060003400803001700020006060000280000419005000080079",
-                help="Enter puzzle as a string with 0 for empty cells"
-            )
-            
-            sub_grid_width = st.number_input("Sub-grid Width", min_value=2, max_value=6, value=3, key="solve_width")
-            sub_grid_height = st.number_input("Sub-grid Height", min_value=2, max_value=6, value=3, key="solve_height")
-            
-            if puzzle_string:
-                try:
-                    solver = SudokuMIPSolver.from_string(
-                        puzzle_string.strip(),
-                        sub_grid_width=sub_grid_width,
-                        sub_grid_height=sub_grid_height
-                    )
-                except Exception as e:
-                    st.error(f"Error parsing puzzle string: {str(e)}")
-        
-        elif input_method == "File Upload":
-            uploaded_file = st.file_uploader("Choose a puzzle file", type=['txt'])
-            if uploaded_file is not None:
-                content = uploaded_file.read().decode('utf-8')
-                sub_grid_width = st.number_input("Sub-grid Width", min_value=2, max_value=6, value=3, key="file_width")
-                sub_grid_height = st.number_input("Sub-grid Height", min_value=2, max_value=6, value=3, key="file_height")
+        with solved_col:
+            # Display solution if available
+            if 'current_solution' in st.session_state:
+                st.subheader("Solution")
+                display_sudoku_board(st.session_state.current_solution, solver, "Solution")
                 
-                try:
-                    solver = SudokuMIPSolver.from_string(
-                        content.strip(),
-                        sub_grid_width=sub_grid_width,
-                        sub_grid_height=sub_grid_height
-                    )
-                except Exception as e:
-                    st.error(f"Error parsing file: {str(e)}")
-        
-        elif input_method == "Use Generated Puzzle":
-            if 'generated_solver' in st.session_state:
-                solver = st.session_state.generated_solver
-                st.success("Using previously generated puzzle")
-            else:
-                st.warning("No generated puzzle found. Please generate a puzzle first.")
-        
-        # Solving options
-        if solver is not None:
-            st.subheader("Solving Options")
-            
-            # Solution search mode
-            search_mode = st.radio(
-                "Search Mode:",
-                ["Single Solution", "Multiple Solutions"],
-                help="Choose whether to find one solution or search for multiple solutions"
-            )
-            
-            if search_mode == "Single Solution":
-                show_output = st.checkbox("Show Solver Output", value=False)
+                # Solution statistics
+                st.subheader("Solution Statistics")
+                col_sol1, col_sol2 = st.columns(2)
+                with col_sol1:
+                    st.metric("Solve Time", f"{st.session_state.solve_time:.3f}s")
+                with col_sol2:
+                    st.metric("Status", "Solved ✓")
                 
-                if st.button("🔍 Solve Puzzle", type="primary"):
-                    solve_puzzle_with_options(solver, 1, show_output)
-            
-            else:  # Multiple Solutions
-                max_solutions = st.number_input(
-                    "Maximum Solutions to Find",
-                    min_value=1,
-                    max_value=100,
-                    value=10,
-                    help="Limit the search to avoid excessive computation"
+                # Export solution
+                pretty_solution = solver.get_pretty_string(st.session_state.current_solution)
+                st.download_button(
+                    "📥 Download Solution",
+                    pretty_solution,
+                    file_name=f"sudoku_solution_{int(time.time())}.txt",
+                    mime="text/plain"
                 )
+            
+            # Display multiple solutions if available
+            elif 'multiple_solutions' in st.session_state:
+                display_multiple_solutions()
+        
+    else:
+        st.info("Please generate or input a puzzle using the options on the left")
+
+    # Display sidebar
+    display_sidebar()
+
+
+def display_sidebar():
+    """Display the sidebar with information and tips"""
+    with st.sidebar:
+        st.header("📚 About")
+        st.write("""
+        This dashboard uses the **sudoku-mip-solver** library to solve and generate Sudoku puzzles using Mixed Integer Programming (MIP).
+        
+        ### Features:
+        - ✅ Solve puzzles of any size
+        - 🎲 Generate random puzzles
+        - 🔍 Find multiple solutions
+        - 📐 Support non-standard grid sizes
+        - ⚙️ Customizable difficulty levels
+        - 📥 Export puzzles and solutions
+        - 📁 Load puzzles from files
+        
+        ### Supported Grid Sizes:
+        - 9×9 (standard)
+        - 6×6, 4×4, 12×12, 16×16
+        - Custom dimensions (2×2 to 6×6 sub-grids)
+        
+        ### Input Methods:
+        - **Generate**: Create random puzzles with customizable difficulty
+        - **String**: Enter puzzle as text (0 or . for empty cells)
+        - **File**: Upload puzzle files (.txt format)
+        """)
                 
-                show_output = st.checkbox("Show Solver Output", value=False, key="multi_output")
-                
-                if st.button("🔢 Find Multiple Solutions", type="primary"):
-                    find_multiple_solutions(solver, max_solutions)
-    
-    with col2:
-        if 'current_solver' in st.session_state:
-            display_puzzle_and_solution()
-        elif 'multiple_solutions' in st.session_state:
-            display_multiple_solutions()
+        st.header("💡 Tips")
+        st.write("""
+        - Use the **Generate** tab to create practice puzzles
+        - Try different grid sizes for variety
+        - Enable "Multiple Solutions" to check puzzle uniqueness
+        - Export puzzles to share or save for later
+        - Use the string format to input puzzles from other sources
+        """)
 
-
-
+        st.header("🔗 Links")
+        st.write("""
+        - [sudoku-mip-solver GitHub](https://github.com/DenHvideDvaerg/sudoku-mip-solver)
+        - [Streamlit Documentation](https://docs.streamlit.io/)
+        """)
 
 
 # Helper functions
 def count_clues(board):
-    return sum(sum(1 for cell in row if cell != 0) for row in board)
+    return sum(sum(1 for cell in row if cell != 0 and cell is not None) for row in board)
 
 
-def display_sudoku_board(board, title="Sudoku Board", solver=None):
+def display_sudoku_board(board, solver, title="Sudoku Board"):
     st.subheader(title)
     
     # Create a styled display of the Sudoku board
@@ -259,16 +416,10 @@ def display_sudoku_board(board, title="Sudoku Board", solver=None):
     st.markdown(board_html, unsafe_allow_html=True)
 
 
-def create_sudoku_html(board, solver=None):
+def create_sudoku_html(board, solver):
     grid_size = len(board)
-    
-    # Try to get sub-grid dimensions from solver, otherwise use square root approximation
-    if solver and hasattr(solver, 'sub_grid_width') and hasattr(solver, 'sub_grid_height'):
-        sub_grid_width = solver.sub_grid_width
-        sub_grid_height = solver.sub_grid_height
-    else:
-        sub_grid_width = int(grid_size ** 0.5)
-        sub_grid_height = sub_grid_width
+    sub_grid_width = solver.sub_grid_width
+    sub_grid_height = solver.sub_grid_height
     
     # Simple CSS that adapts to Streamlit's theme
     html = """
@@ -325,35 +476,20 @@ def create_sudoku_html(board, solver=None):
     return html
 
 
-def solve_and_display(solver):
-    with st.spinner("Solving puzzle..."):
-        start_time = time.time()
-        
-        try:
-            success = solver.solve()
-            solve_time = time.time() - start_time
-            
-            if success:
-                solution = solver.get_solution()
-                st.session_state.current_solver = solver
-                st.session_state.current_solution = solution
-                st.session_state.solve_time = solve_time
-                
-                st.success(f"Puzzle solved in {solve_time:.3f} seconds!")
-                display_sudoku_board(solution, "Solution", solver)
-            else:
-                st.error("No solution found for this puzzle!")
-        
-        except Exception as e:
-            st.error(f"Error solving puzzle: {str(e)}")
-
-
 def solve_puzzle_with_options(solver, max_solutions, show_output):
-    with st.spinner("Solving puzzle..."):
+    with st.spinner("Solving puzzle..." if max_solutions == 1 else f"Finding up to {max_solutions} solutions..."):
         start_time = time.time()
         
         try:
             if max_solutions == 1:
+                # Clear multiple solutions state when solving for single solution
+                if 'multiple_solutions' in st.session_state:
+                    del st.session_state.multiple_solutions
+                if 'multi_solve_time' in st.session_state:
+                    del st.session_state.multi_solve_time
+                if 'multi_solver' in st.session_state:
+                    del st.session_state.multi_solver
+                
                 success = solver.solve(show_output=show_output)
                 solve_time = time.time() - start_time
                 
@@ -367,75 +503,31 @@ def solve_puzzle_with_options(solver, max_solutions, show_output):
                 else:
                     st.error("No solution found!")
             else:
-                max_sol = None if max_solutions == "All" else int(max_solutions)
-                solutions = solver.find_all_solutions(max_solutions=max_sol)
+                # Clear single solution state when solving for multiple solutions
+                if 'current_solution' in st.session_state:
+                    del st.session_state.current_solution
+                if 'solve_time' in st.session_state:
+                    del st.session_state.solve_time
+                
+                solutions = solver.find_all_solutions(max_solutions=max_solutions)
                 solve_time = time.time() - start_time
                 
                 st.session_state.current_solver = solver
                 st.session_state.multiple_solutions = solutions
-                st.session_state.solve_time = solve_time
+                st.session_state.multi_solve_time = solve_time
+                st.session_state.multi_solver = solver  # Store the solver for display
                 
-                st.success(f"Found {len(solutions)} solution(s) in {solve_time:.3f} seconds!")
+                if len(solutions) == 0:
+                    st.error("No solutions found!")
+                elif len(solutions) == 1:
+                    st.success(f"Found 1 unique solution in {solve_time:.3f} seconds!")
+                else:
+                    st.success(f"Found {len(solutions)} solutions in {solve_time:.3f} seconds!")
+                    if len(solutions) == max_solutions:
+                        st.warning(f"Reached maximum limit of {max_solutions} solutions. There may be more.")
         
         except Exception as e:
             st.error(f"Error solving puzzle: {str(e)}")
-
-
-def display_puzzle_and_solution():
-    solver = st.session_state.current_solver
-    
-    # col_a, col_b = st.columns(2)
-    
-    # with col_a:
-    display_sudoku_board(solver.board, "Original Puzzle", solver)
-    
-    # with col_b:
-    if 'current_solution' in st.session_state:
-        display_sudoku_board(st.session_state.current_solution, "Solution", solver)
-        
-        # Solution statistics
-        st.subheader("Solution Statistics")
-        col_stat1, col_stat2 = st.columns(2)
-        with col_stat1:
-            st.metric("Solve Time", f"{st.session_state.solve_time:.3f}s")
-        with col_stat2:
-            clues = count_clues(solver.board)
-            total = len(solver.board) ** 2
-            st.metric("Clues Used", f"{clues}/{total}")
-        
-        # Export solution
-        pretty_solution = solver.get_pretty_string(st.session_state.current_solution)
-        st.download_button(
-            "📥 Download Solution",
-            pretty_solution,
-            file_name=f"sudoku_solution_{int(time.time())}.txt",
-            mime="text/plain"
-        )
-
-
-def find_multiple_solutions(solver, max_solutions):
-    with st.spinner(f"Finding up to {max_solutions} solutions..."):
-        start_time = time.time()
-        
-        try:
-            solutions = solver.find_all_solutions(max_solutions=max_solutions)
-            solve_time = time.time() - start_time
-            
-            st.session_state.multiple_solutions = solutions
-            st.session_state.multi_solve_time = solve_time
-            st.session_state.multi_solver = solver  # Store the solver for display
-            
-            if len(solutions) == 0:
-                st.error("No solutions found!")
-            elif len(solutions) == 1:
-                st.success(f"Found 1 unique solution in {solve_time:.3f} seconds!")
-            else:
-                st.success(f"Found {len(solutions)} solutions in {solve_time:.3f} seconds!")
-                if len(solutions) == max_solutions:
-                    st.warning(f"Reached maximum limit of {max_solutions} solutions. There may be more.")
-        
-        except Exception as e:
-            st.error(f"Error finding solutions: {str(e)}")
 
 
 def display_multiple_solutions():
@@ -443,28 +535,25 @@ def display_multiple_solutions():
     
     st.subheader(f"Found {len(solutions)} Solution(s)")
     
-    if len(solutions) > 1:
-        st.warning("This puzzle has multiple solutions - it's not uniquely solvable!")
-    
-    # Solution selector
-    if len(solutions) > 1:
-        selected_solution = st.selectbox(
-            "Select solution to view:",
-            range(len(solutions)),
-            format_func=lambda x: f"Solution {x+1}"
-        )
-    else:
-        selected_solution = 0
-    
     if solutions:
-        col_orig, col_sol = st.columns(2)
+        solver = st.session_state.multi_solver
         
-        with col_orig:
-            solver = st.session_state.multi_solver
-            display_sudoku_board(solver.board, "Original Puzzle", solver)
+        # Create a placeholder for the board that we can update
+        board_placeholder = st.empty()
         
-        with col_sol:
-            display_sudoku_board(solutions[selected_solution], f"Solution {selected_solution + 1}", solver)
+        # Solution selector (only show if there are multiple solutions)
+        if len(solutions) > 1:
+            selected_solution = st.selectbox(
+                "Select solution to view:",
+                range(len(solutions)),
+                format_func=lambda x: f"Solution {x+1}"
+            )
+        else:
+            selected_solution = 0
+        
+        # Display the selected solution in the placeholder
+        with board_placeholder.container():
+            display_sudoku_board(solutions[selected_solution], solver, f"Solution {selected_solution + 1}")
         
         # Statistics
         st.subheader("Search Statistics")
