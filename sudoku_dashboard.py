@@ -466,6 +466,14 @@ def solve_puzzle_with_options(solver, max_solutions, show_output):
         
         try:
             if max_solutions == 1:
+                # Clear multiple solutions state when solving for single solution
+                if 'multiple_solutions' in st.session_state:
+                    del st.session_state.multiple_solutions
+                if 'multi_solve_time' in st.session_state:
+                    del st.session_state.multi_solve_time
+                if 'multi_solver' in st.session_state:
+                    del st.session_state.multi_solver
+                
                 success = solver.solve(show_output=show_output)
                 solve_time = time.time() - start_time
                 
@@ -479,6 +487,12 @@ def solve_puzzle_with_options(solver, max_solutions, show_output):
                 else:
                     st.error("No solution found!")
             else:
+                # Clear single solution state when solving for multiple solutions
+                if 'current_solution' in st.session_state:
+                    del st.session_state.current_solution
+                if 'solve_time' in st.session_state:
+                    del st.session_state.solve_time
+                
                 solutions = solver.find_all_solutions(max_solutions=max_solutions)
                 solve_time = time.time() - start_time
                 
