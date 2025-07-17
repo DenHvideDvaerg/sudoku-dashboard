@@ -519,19 +519,25 @@ def display_multiple_solutions():
     
     st.subheader(f"Found {len(solutions)} Solution(s)")
     
-    # Solution selector
-    if len(solutions) > 1:
-        selected_solution = st.selectbox(
-            "Select solution to view:",
-            range(len(solutions)),
-            format_func=lambda x: f"Solution {x+1}"
-        )
-    else:
-        selected_solution = 0
-    
     if solutions:
         solver = st.session_state.multi_solver
-        display_sudoku_board(solutions[selected_solution], f"Solution {selected_solution + 1}", solver)
+        
+        # Create a placeholder for the board that we can update
+        board_placeholder = st.empty()
+        
+        # Solution selector (only show if there are multiple solutions)
+        if len(solutions) > 1:
+            selected_solution = st.selectbox(
+                "Select solution to view:",
+                range(len(solutions)),
+                format_func=lambda x: f"Solution {x+1}"
+            )
+        else:
+            selected_solution = 0
+        
+        # Display the selected solution in the placeholder
+        with board_placeholder.container():
+            display_sudoku_board(solutions[selected_solution], f"Solution {selected_solution + 1}", solver)
         
         # Statistics
         st.subheader("Search Statistics")
