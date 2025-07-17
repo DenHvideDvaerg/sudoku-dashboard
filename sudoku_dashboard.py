@@ -356,6 +356,51 @@ def display_puzzle_and_results():
     else:
         st.info("Please generate or input a puzzle using the options on the left")
 
+    # Display sidebar
+    display_sidebar()
+
+
+def display_sidebar():
+    """Display the sidebar with information and tips"""
+    with st.sidebar:
+        st.header("📚 About")
+        st.write("""
+        This dashboard uses the **sudoku-mip-solver** library to solve and generate Sudoku puzzles using Mixed Integer Programming (MIP).
+        
+        ### Features:
+        - ✅ Solve puzzles of any size
+        - 🎲 Generate random puzzles
+        - 🔍 Find multiple solutions
+        - 📐 Support non-standard grid sizes
+        - ⚙️ Customizable difficulty levels
+        - 📥 Export puzzles and solutions
+        - 📁 Load puzzles from files
+        
+        ### Supported Grid Sizes:
+        - 9×9 (standard)
+        - 6×6, 4×4, 12×12, 16×16
+        - Custom dimensions (2×2 to 6×6 sub-grids)
+        
+        ### Input Methods:
+        - **Generate**: Create random puzzles with customizable difficulty
+        - **String**: Enter puzzle as text (0 or . for empty cells)
+        - **File**: Upload puzzle files (.txt format)
+        """)
+                
+        st.header("💡 Tips")
+        st.write("""
+        - Use the **Generate** tab to create practice puzzles
+        - Try different grid sizes for variety
+        - Enable "Multiple Solutions" to check puzzle uniqueness
+        - Export puzzles to share or save for later
+        - Use the string format to input puzzles from other sources
+        """)
+
+        st.header("🔗 Links")
+        st.write("""
+        - [sudoku-mip-solver GitHub](https://github.com/DenHvideDvaerg/sudoku-mip-solver)
+        - [Streamlit Documentation](https://docs.streamlit.io/)
+        """)
 
 
 # Helper functions
