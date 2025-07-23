@@ -299,8 +299,15 @@ def manual_input_tab():
     with col_load:
         if st.button("📥 Load Current Puzzle", help="Load the active puzzle into the manual input grid"):
             if 'current_solver' in st.session_state:
-                load_puzzle_into_manual_input(st.session_state.current_solver.board, grid_size)
-                st.success("Puzzle loaded into manual input!")
+                solver = st.session_state.current_solver
+                solver_grid_size = len(solver.board)
+                
+                # Check if the current puzzle matches the manual input grid size
+                if solver_grid_size != grid_size:
+                    st.error(f"Cannot load {solver_grid_size}×{solver_grid_size} puzzle into {grid_size}×{grid_size} manual input grid. Please adjust the grid dimensions to match.")
+                else:
+                    load_puzzle_into_manual_input(solver.board, grid_size)
+                    st.success("Puzzle loaded into manual input!")
             else:
                 st.warning("No active puzzle to load!")
     
@@ -335,6 +342,14 @@ def manual_input_tab():
 
 def create_manual_input_grid(grid_size, sub_grid_width, sub_grid_height):
     """Create a manual input grid for entering puzzle values"""
+    
+    # Initialize session state keys to None if they don't exist (ensures empty widgets on first load)
+    for i in range(grid_size):
+        for j in range(grid_size):
+            key = f"manual_cell_{grid_size}_{i}_{j}"
+            if key not in st.session_state:
+                st.session_state[key] = None
+    
     st.write(f"Enter values for {grid_size}×{grid_size} grid (leave empty for blank cells):")
     
     board = []
@@ -347,14 +362,13 @@ def create_manual_input_grid(grid_size, sub_grid_width, sub_grid_height):
         for j in range(grid_size):
             with row_cols[j]:
                 # Get existing value from session state if available
-                key = f"manual_cell_{i}_{j}"
-                existing_value = st.session_state.get(key, None)
+                # Include grid_size in key to avoid conflicts when grid size changes
+                key = f"manual_cell_{grid_size}_{i}_{j}"
                 
                 value = st.number_input(
                     f"({i+1},{j+1})",
                     min_value=1,
                     max_value=grid_size,
-                    value=existing_value,
                     key=key,
                     label_visibility="collapsed",
                     help=f"Cell ({i+1},{j+1}) - Enter number 1-{grid_size} or leave empty",
@@ -370,7 +384,8 @@ def load_puzzle_into_manual_input(puzzle_board, grid_size):
     """Load an existing puzzle into the manual input grid"""
     for i in range(min(len(puzzle_board), grid_size)):
         for j in range(min(len(puzzle_board[i]), grid_size)):
-            key = f"manual_cell_{i}_{j}"
+            # Include grid_size in key to match the key format used in create_manual_input_grid
+            key = f"manual_cell_{grid_size}_{i}_{j}"
             value = puzzle_board[i][j]
             # Store the actual value (None for empty, integer for filled)
             st.session_state[key] = value if value is not None and value != 0 else None
@@ -380,7 +395,8 @@ def clear_manual_input_grid(grid_size):
     """Clear all values in the manual input grid"""
     for i in range(grid_size):
         for j in range(grid_size):
-            key = f"manual_cell_{i}_{j}"
+            # Include grid_size in key to match the key format used in create_manual_input_grid
+            key = f"manual_cell_{grid_size}_{i}_{j}"
             if key in st.session_state:
                 st.session_state[key] = None
 
