@@ -180,6 +180,7 @@ def generate_puzzle_tab():
                 st.session_state.generated_difficulty = actual_difficulty
                 st.session_state.generation_time = generation_time
                 st.session_state.string_puzzle_input = solver.to_string()
+                st.session_state.solver_source = 'generate'
 
                 st.success(f"Puzzle generated successfully in {generation_time:.2f} seconds!")
                 st.info(f"Actual difficulty: {actual_difficulty:.3f}")
@@ -190,9 +191,9 @@ def generate_puzzle_tab():
                 st.error(f"Error generating puzzle: {str(e)}")
                 return None
     
-    # Return existing solver if available
-    if 'current_solver' in st.session_state:
-        return st.session_state.current_solver
+    # Return existing solver only if it was generated
+    if st.session_state.get('solver_source') == 'generate':
+        return st.session_state.get('current_solver')
     return None
 
 
@@ -242,15 +243,16 @@ def string_input_tab():
                 sub_grid_height=sub_grid_height
             )
             st.session_state.current_solver = solver
+            st.session_state.solver_source = 'string'
             st.success("Puzzle loaded successfully!")
             return solver
         except Exception as e:
             st.error(f"Error parsing puzzle string: {str(e)}")
             return None
     
-    # Return existing solver if available
-    if 'current_solver' in st.session_state:
-        return st.session_state.current_solver
+    # Return existing solver only if it came from string input
+    if st.session_state.get('solver_source') == 'string':
+        return st.session_state.get('current_solver')
     return None
 
 
@@ -261,28 +263,35 @@ def file_input_tab():
     
     uploaded_file = st.file_uploader("Choose a puzzle file", type=['txt'])
     
+    # Only process if we have a file and haven't processed this exact file yet
     if uploaded_file is not None:
+        # Use file content hash to detect if this is a new file
         content = uploaded_file.read().decode('utf-8')
+        content_hash = hash(content)
         
-        try:
-            # Clear previous solutions
-            clear_solution_state()
-            
-            solver = SudokuMIPSolver.from_string(
-                content.strip(),
-                sub_grid_width=sub_grid_width,
-                sub_grid_height=sub_grid_height
-            )
-            st.session_state.current_solver = solver
-            st.success("Puzzle loaded from file successfully!")
-            return solver
-        except Exception as e:
-            st.error(f"Error parsing file: {str(e)}")
-            return None
+        # Only process if this is a new file upload
+        if st.session_state.get('last_uploaded_hash') != content_hash:
+            try:
+                # Clear previous solutions
+                clear_solution_state()
+                
+                solver = SudokuMIPSolver.from_string(
+                    content.strip(),
+                    sub_grid_width=sub_grid_width,
+                    sub_grid_height=sub_grid_height
+                )
+                st.session_state.current_solver = solver
+                st.session_state.solver_source = 'file'
+                st.session_state.last_uploaded_hash = content_hash
+                st.success("Puzzle loaded from file successfully!")
+                return solver
+            except Exception as e:
+                st.error(f"Error parsing file: {str(e)}")
+                return None
     
-    # Return existing solver if available
-    if 'current_solver' in st.session_state:
-        return st.session_state.current_solver
+    # Return existing solver only if it came from file upload
+    if st.session_state.get('solver_source') == 'file':
+        return st.session_state.get('current_solver')
     return None
 
 
@@ -330,15 +339,16 @@ def manual_input_tab():
                 # The board already contains None for empty cells and integers for filled cells
                 solver = SudokuMIPSolver(board, sub_grid_width, sub_grid_height)
                 st.session_state.current_solver = solver
+                st.session_state.solver_source = 'manual'  # Track source
                 status_container.success("Puzzle created successfully!")
                 return solver
             except Exception as e:
                 status_container.error(f"Error creating puzzle: {str(e)}")
                 return None
         
-    # Return existing solver if available
-    if 'current_solver' in st.session_state:
-        return st.session_state.current_solver
+    # Return existing solver only if it came from manual input
+    if st.session_state.get('solver_source') == 'manual':
+        return st.session_state.get('current_solver')
     return None
 
 
