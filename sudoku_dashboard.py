@@ -295,7 +295,8 @@ def manual_input_tab():
     st.subheader("Manual Input Grid")
     
     # Load current puzzle button
-    col_load, col_clear = st.columns([1, 1])
+    col_load, col_update, col_clear = st.columns(3)
+    status_container = st.empty()
     with col_load:
         if st.button("📥 Load Current Puzzle", help="Load the active puzzle into the manual input grid"):
             if 'current_solver' in st.session_state:
@@ -304,36 +305,37 @@ def manual_input_tab():
                 
                 # Check if the current puzzle matches the manual input grid size
                 if solver_grid_size != grid_size:
-                    st.error(f"Cannot load {solver_grid_size}×{solver_grid_size} puzzle into {grid_size}×{grid_size} manual input grid. Please adjust the grid dimensions to match.")
+                    status_container.error(f"Cannot load {solver_grid_size}×{solver_grid_size} puzzle into {grid_size}×{grid_size} manual input grid. Please adjust the grid dimensions to match.")
                 else:
                     load_puzzle_into_manual_input(solver.board, grid_size)
-                    st.success("Puzzle loaded into manual input!")
+                    status_container.success("Puzzle loaded into manual input!")
             else:
-                st.warning("No active puzzle to load!")
+                status_container.warning("No active puzzle to load!")
     
     with col_clear:
         if st.button("🗑️ Clear Grid", help="Clear all values in the manual input grid"):
             clear_manual_input_grid(grid_size)
-            st.success("Grid cleared!")
+            status_container.success("Grid cleared!")
     
     # Create the manual input grid
     board = create_manual_input_grid(grid_size, sub_grid_width, sub_grid_height)
     
-    # Create puzzle button
-    if st.button("🚀 Create Puzzle", type="primary"):
-        try:
-            # Clear previous solutions
-            clear_solution_state()
-            
-            # The board already contains None for empty cells and integers for filled cells
-            solver = SudokuMIPSolver(board, sub_grid_width, sub_grid_height)
-            st.session_state.current_solver = solver
-            st.success("Puzzle created successfully!")
-            return solver
-        except Exception as e:
-            st.error(f"Error creating puzzle: {str(e)}")
-            return None
-    
+    # Create puzzle button (after board creation)
+    with col_update: 
+        if st.button("🚀 Update Puzzle", type="primary"):
+            try:
+                # Clear previous solutions
+                clear_solution_state()
+                
+                # The board already contains None for empty cells and integers for filled cells
+                solver = SudokuMIPSolver(board, sub_grid_width, sub_grid_height)
+                st.session_state.current_solver = solver
+                status_container.success("Puzzle created successfully!")
+                return solver
+            except Exception as e:
+                status_container.error(f"Error creating puzzle: {str(e)}")
+                return None
+        
     # Return existing solver if available
     if 'current_solver' in st.session_state:
         return st.session_state.current_solver
