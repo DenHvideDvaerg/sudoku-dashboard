@@ -322,7 +322,7 @@ def manual_input_tab():
     
     # Create puzzle button (after board creation)
     with col_update: 
-        if st.button("🚀 Update Puzzle", type="primary"):
+        if st.button("🚀 Update Puzzle", help="Update the active puzzle with the manual input grid values"):
             try:
                 # Clear previous solutions
                 clear_solution_state()
