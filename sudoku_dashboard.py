@@ -72,8 +72,6 @@ def solve_options_section():
     if 'current_solver' not in st.session_state:
         return
     
-    solver = st.session_state.current_solver
-
     st.subheader("Solving Options")
     
     # Multiple solutions toggle
