@@ -432,6 +432,10 @@ def display_puzzle_and_results():
         with original_export_col:
             # Export options
             create_export_interface("Puzzle", solver, solver.board, "puzzle_format_radio")
+        
+        # Determine which solution board to use for export
+        selected_solution_board = None
+        
         with solved_col:
             # Display solution if available
             if 'current_solution' in st.session_state:
@@ -445,15 +449,17 @@ def display_puzzle_and_results():
                     st.metric("Solve Time", f"{st.session_state.solve_time:.3f}s")
                 with col_sol2:
                     st.metric("Status", "Solved ✓")
+                
+                selected_solution_board = st.session_state.current_solution
 
             # Display multiple solutions if available
             elif 'multiple_solutions' in st.session_state:
-                display_multiple_solutions()
+                selected_solution_board = display_multiple_solutions()
 
         with solved_export_col:
-             if 'current_solution' in st.session_state:
-                # Export solution
-                create_export_interface("Solution", solver, st.session_state.current_solution, "solution_format_radio")
+             if selected_solution_board is not None:
+                # Export solution (works for both single and multiple solutions)
+                create_export_interface("Solution", solver, selected_solution_board, "solution_format_radio")
         
     else:
         st.info("Please generate or input a puzzle using the options on the left")
@@ -708,6 +714,11 @@ def display_multiple_solutions():
         with col_stat3:
             avg_time = st.session_state.multi_solve_time / len(solutions)
             st.metric("Avg Time per Solution", f"{avg_time:.3f}s")
+        
+        # Return the selected solution board for export
+        return solutions[selected_solution]
+    
+    return None
 
 
 
