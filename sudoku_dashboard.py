@@ -329,7 +329,7 @@ def create_manual_input_grid(grid_size):
             if key not in st.session_state:
                 st.session_state[key] = None
     
-    st.write(f"Enter values for {grid_size}×{grid_size} grid (leave empty for blank cells):")
+    st.write(f"Enter values for {grid_size}×{grid_size} grid (leave empty or enter 0 for blank cells):")
     
     board = []
     
@@ -346,16 +346,18 @@ def create_manual_input_grid(grid_size):
                 
                 value = st.number_input(
                     f"({i+1},{j+1})",
-                    min_value=1,
+                    min_value=0,
                     max_value=grid_size,
                     key=key,
                     label_visibility="collapsed",
-                    help=f"Cell ({i+1},{j+1}) - Enter number 1-{grid_size} or leave empty",
-                    placeholder="·"
+                    help=f"Cell ({i+1},{j+1}) - Enter number 1-{grid_size} or 0 to leave empty",
+                    placeholder="·",
+                    width=120 # Hides the +/- buttons
                 )
-                row.append(value)
+                # Convert 0 values to None for SudokuMIPSolver compatibility
+                row.append(None if value == 0 else value)
         board.append(row)
-    
+
     return board
 
 
