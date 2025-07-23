@@ -408,7 +408,7 @@ def display_puzzle_and_results():
     if 'current_solver' in st.session_state:
 
         original_col, solved_col = st.columns(2)
-
+        original_export_col, solved_export_col = st.columns(2)
         with original_col:
 
             solver = st.session_state.current_solver
@@ -429,22 +429,9 @@ def display_puzzle_and_results():
                 if 'generation_time' in st.session_state:
                     st.metric("Generation Time", f"{st.session_state.generation_time:.2f}s")
             
+        with original_export_col:
             # Export options
-            with st.expander("Export Options"):
-                col_exp1, col_exp2 = st.columns(2)
-
-                with col_exp1:
-                    puzzle_string = solver.to_string()
-                    st.text_area("Puzzle as String", puzzle_string, height=68)
-            
-            with col_exp2:
-                pretty_string = solver.get_pretty_string(solver.board)
-                st.download_button(
-                    "📥 Download Puzzle",
-                    pretty_string,
-                    file_name=f"sudoku_puzzle_{int(time.time())}.txt",
-                    mime="text/plain"
-                )
+            create_export_interface("Puzzle", solver, solver.board, "puzzle_format_radio")
         with solved_col:
             # Display solution if available
             if 'current_solution' in st.session_state:
@@ -458,19 +445,15 @@ def display_puzzle_and_results():
                     st.metric("Solve Time", f"{st.session_state.solve_time:.3f}s")
                 with col_sol2:
                     st.metric("Status", "Solved ✓")
-                
-                # Export solution
-                pretty_solution = solver.get_pretty_string(st.session_state.current_solution)
-                st.download_button(
-                    "📥 Download Solution",
-                    pretty_solution,
-                    file_name=f"sudoku_solution_{int(time.time())}.txt",
-                    mime="text/plain"
-                )
-            
+
             # Display multiple solutions if available
             elif 'multiple_solutions' in st.session_state:
                 display_multiple_solutions()
+
+        with solved_export_col:
+             if 'current_solution' in st.session_state:
+                # Export solution
+                create_export_interface("Solution", solver, st.session_state.current_solution, "solution_format_radio")
         
     else:
         st.info("Please generate or input a puzzle using the options on the left")
@@ -524,6 +507,45 @@ def display_sidebar():
 
 
 # Helper functions
+def create_export_interface(content_type, solver, board_data, radio_key):
+    """Create complete export interface with expander, text area, and download options"""
+    with st.expander("Export Options"):
+        col_exp1, col_exp2 = st.columns(2)
+        
+        with col_exp1:
+            content_string = solver.to_string(board_data)
+            st.text_area(f"{content_type} as String", content_string, height=68)
+        
+        with col_exp2:
+            # Download format selection
+            st.write(f"**Download {content_type} Format:**")
+            download_format = st.radio(
+                "Choose format:",
+                options=["String Format", "Pretty Format"],
+                help="String format is compatible with file upload, Pretty format is human-readable",
+                label_visibility="collapsed",
+                key=radio_key
+            )
+            
+            # Single download button
+            if download_format == "String Format":
+                download_content = content_string
+                file_suffix = "string"
+                format_help = f"{content_type} in string format (compatible with re-import)"
+            else:
+                download_content = solver.get_pretty_string(board_data)
+                file_suffix = "pretty"
+                format_help = f"{content_type} in pretty format (human-readable)"
+            
+            st.download_button(
+                f"📥 Download {content_type}",
+                download_content,
+                file_name=f"sudoku_{content_type.lower()}_{file_suffix}_{int(time.time())}.txt",
+                mime="text/plain",
+                help=format_help
+            )
+
+
 def count_clues(board):
     return sum(sum(1 for cell in row if cell != 0 and cell is not None) for row in board)
 
