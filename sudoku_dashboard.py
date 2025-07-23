@@ -302,7 +302,7 @@ def manual_input_tab():
             status_container.success("Grid cleared!")
     
     # Create the manual input grid
-    board = create_manual_input_grid(grid_size, sub_grid_width, sub_grid_height)
+    board = create_manual_input_grid(grid_size)
     
     # Create puzzle button (after board creation)
     with col_update: 
@@ -319,7 +319,7 @@ def manual_input_tab():
                 status_container.error(f"Error creating puzzle: {str(e)}")
         
 
-def create_manual_input_grid(grid_size, sub_grid_width, sub_grid_height):
+def create_manual_input_grid(grid_size):
     """Create a manual input grid for entering puzzle values"""
     
     # Initialize session state keys to None if they don't exist (ensures empty widgets on first load)
