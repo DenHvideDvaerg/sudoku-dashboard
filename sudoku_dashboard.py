@@ -192,8 +192,25 @@ def string_input_tab():
     sub_grid_width, sub_grid_height = get_grid_dimensions("string_")
     grid_size = sub_grid_width * sub_grid_height
 
-    # Manual input
-    st.subheader("Manual Input")
+    st.subheader("String Input")
+    
+    # Button row - matching the manual input tab layout
+    col_load, col_update, col_clear = st.columns(3)
+    status_container = st.empty()
+    
+    with col_load:
+        if st.button("📥 Load Current Puzzle", help="Load the active puzzle into the string input field"):
+            if 'current_solver' in st.session_state:
+                solver = st.session_state.current_solver
+                st.session_state.string_puzzle_input = solver.to_string()
+                status_container.success("Puzzle loaded into string input!")
+            else:
+                status_container.warning("No active puzzle to load!")
+    
+    with col_clear:
+        if st.button("🗑️ Clear Field", help="Clear the string input field"):
+            st.session_state.string_puzzle_input = ""
+            status_container.success("String input cleared!")
     
     # Get current value from session state or use empty string
     current_value = st.session_state.get('string_puzzle_input', '')
@@ -210,31 +227,22 @@ def string_input_tab():
     if puzzle_string != current_value:
         st.session_state.string_puzzle_input = puzzle_string
     
-    # Go button
-    col_go1, col_go2 = st.columns([1, 2])
-    with col_go1:
-        go_button = st.button("🚀 Load Puzzle", type="primary", disabled=not puzzle_string.strip())
-    
-    with col_go2:
-        if st.button("🗑️ Clear", help="Clear the input field"):
-            st.session_state.string_puzzle_input = ""
-            st.rerun()
-    
-    # Process puzzle when Go button is clicked or puzzle is loaded
-    if go_button and puzzle_string.strip():
-        try:
-            # Clear previous solutions
-            clear_solution_state()
-            
-            solver = SudokuMIPSolver.from_string(
-                puzzle_string.strip(),
-                sub_grid_width=sub_grid_width,
-                sub_grid_height=sub_grid_height
-            )
-            st.session_state.current_solver = solver
-            st.success("Puzzle loaded successfully!")
-        except Exception as e:
-            st.error(f"Error parsing puzzle string: {str(e)}")
+    # Update puzzle button (after text area creation)
+    with col_update:
+        if st.button("🚀 Update Puzzle", help="Update the active puzzle with the string input", disabled=not puzzle_string.strip()):
+            try:
+                # Clear previous solutions
+                clear_solution_state()
+                
+                solver = SudokuMIPSolver.from_string(
+                    puzzle_string.strip(),
+                    sub_grid_width=sub_grid_width,
+                    sub_grid_height=sub_grid_height
+                )
+                st.session_state.current_solver = solver
+                status_container.success("Puzzle updated successfully!")
+            except Exception as e:
+                status_container.error(f"Error parsing puzzle string: {str(e)}")
     
 
 def file_input_tab():
