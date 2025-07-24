@@ -17,21 +17,24 @@ def main():
     col1, col2 = st.columns([1, 2])
     
     with col1:
+        # Global grid dimensions
+        sub_grid_width, sub_grid_height = get_grid_dimensions()
+        
         # Input method tabs
         st.subheader("Input Method")
         tab1, tab2, tab3, tab4 = st.tabs(["🎲 Generate", "📝 String", "📁 File", "✏️ Manual"])
         
         with tab1:
-            generate_puzzle_tab()
+            generate_puzzle_tab(sub_grid_width, sub_grid_height)
         
         with tab2:
-            string_input_tab()
+            string_input_tab(sub_grid_width, sub_grid_height)
         
         with tab3:
-            file_input_tab()
+            file_input_tab(sub_grid_width, sub_grid_height)
         
         with tab4:
-            manual_input_tab()
+            manual_input_tab(sub_grid_width, sub_grid_height)
     
     with col2:
         # Solving options
@@ -40,30 +43,36 @@ def main():
         # Display puzzle and solution
         display_puzzle_and_results()
 
-def get_grid_dimensions(prefix=""):
+def get_grid_dimensions():
     """Get grid dimensions input from user"""
     st.subheader("Grid Dimensions")
-    sub_grid_width = st.number_input(
-        "Sub-grid Width", 
-        min_value=2, 
-        max_value=6, 
-        value=3,
-        help="Width of each sub-grid (e.g., 3 for standard 9x9 Sudoku)",
-        key=f"{prefix}sub_grid_width"
-    )
     
-    sub_grid_height = st.number_input(
-        "Sub-grid Height", 
-        min_value=2, 
-        max_value=6, 
-        value=3,
-        help="Height of each sub-grid (e.g., 3 for standard 9x9 Sudoku)",
-        key=f"{prefix}sub_grid_height"
-    )
+    col1, col2 = st.columns(2)
     
+    with col1:
+        sub_grid_width = st.number_input(
+            "Sub-grid Width", 
+            min_value=2, 
+            max_value=6, 
+            value=3,
+            help="Width of each sub-grid (e.g., 3 for standard 9x9 Sudoku)",
+            key="global_sub_grid_width"
+        )
+    
+    with col2:
+        sub_grid_height = st.number_input(
+            "Sub-grid Height", 
+            min_value=2, 
+            max_value=6, 
+            value=3,
+            help="Height of each sub-grid (e.g., 3 for standard 9x9 Sudoku)",
+            key="global_sub_grid_height"
+        )
+    
+    # Display grid size below the inputs for better alignment
     grid_size = sub_grid_width * sub_grid_height
-    st.info(f"Grid size: {grid_size}×{grid_size}")
-    
+    st.info(f"**Grid size: {grid_size}×{grid_size}**")
+        
     return sub_grid_width, sub_grid_height
 
 
@@ -115,11 +124,8 @@ def clear_solution_state():
             del st.session_state[key]
 
 
-def generate_puzzle_tab():
+def generate_puzzle_tab(sub_grid_width, sub_grid_height):
     """Generate puzzle tab content"""
-    # Get grid dimensions
-    sub_grid_width, sub_grid_height = get_grid_dimensions("generate_")
-    
     st.subheader("Puzzle Parameters")
     difficulty = st.slider(
         "Difficulty Level",
@@ -186,10 +192,8 @@ def generate_puzzle_tab():
                 st.error(f"Error generating puzzle: {str(e)}")
     
 
-def string_input_tab():
+def string_input_tab(sub_grid_width, sub_grid_height):
     """String input tab content"""
-    # Get grid dimensions
-    sub_grid_width, sub_grid_height = get_grid_dimensions("string_")
     grid_size = sub_grid_width * sub_grid_height
 
     st.subheader("String Input")
@@ -245,11 +249,8 @@ def string_input_tab():
                 status_container.error(f"Error parsing puzzle string: {str(e)}")
     
 
-def file_input_tab():
+def file_input_tab(sub_grid_width, sub_grid_height):
     """File input tab content"""
-    # Get grid dimensions
-    sub_grid_width, sub_grid_height = get_grid_dimensions("file_")
-    
     uploaded_file = st.file_uploader("Choose a puzzle file", type=['txt'])
     
     # Only process if we have a file and haven't processed this exact file yet
@@ -276,10 +277,8 @@ def file_input_tab():
                 st.error(f"Error parsing file: {str(e)}")
     
 
-def manual_input_tab():
+def manual_input_tab(sub_grid_width, sub_grid_height):
     """Manual input tab content"""
-    # Get grid dimensions
-    sub_grid_width, sub_grid_height = get_grid_dimensions("manual_")
     grid_size = sub_grid_width * sub_grid_height
     
     st.subheader("Manual Input Grid")
