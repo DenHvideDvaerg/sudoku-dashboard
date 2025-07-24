@@ -467,7 +467,7 @@ def display_puzzle_and_results():
                 selected_solution_board = display_multiple_solutions()
 
         with solved_export_col:
-             if selected_solution_board is not None:
+            if selected_solution_board is not None:
                 # Export solution (works for both single and multiple solutions)
                 create_export_interface("Solution", selected_solution_board, "solution_format_radio")
         
