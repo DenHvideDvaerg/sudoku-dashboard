@@ -297,6 +297,11 @@ def file_input_tab(sub_grid_width, sub_grid_height):
             except Exception as e:
                 st.error(f"Error parsing file: {str(e)}")
     
+    # Clear upload cache button - only show if there's cache to clear
+    if 'last_uploaded_hash' in st.session_state:
+        if st.button("🗑️ Clear Upload Cache", help="Clear the upload cache to allow re-uploading the same file"):
+            del st.session_state.last_uploaded_hash
+            st.success("Upload cache cleared! You can now re-upload the same file.")
 
 def manual_input_tab(sub_grid_width, sub_grid_height):
     """Manual input tab content"""
