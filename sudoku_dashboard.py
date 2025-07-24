@@ -574,6 +574,10 @@ def display_sudoku_board(board, title="Sudoku Board"):
     
     # Create a styled display of the Sudoku board
     board_html = create_sudoku_html(board)
+    if board_html is None:
+        st.warning("Unable to display the Sudoku board. No solver is available.")
+        return
+    
     st.markdown(board_html, unsafe_allow_html=True)
 
 
