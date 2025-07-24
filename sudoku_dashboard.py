@@ -12,7 +12,10 @@ def main():
 
     st.title("🧩 Sudoku Dashboard")
     st.markdown("Generate, manipulate, and solve Sudoku puzzles with customizable parameters")
-
+    
+    # Display sidebar
+    display_sidebar()
+    
     # Create two main columns
     col1, col2 = st.columns([1, 2])
     
@@ -467,10 +470,7 @@ def display_puzzle_and_results():
     else:
         st.info("Please generate or input a puzzle using the options on the left")
 
-    # Display sidebar
-    display_sidebar()
-
-
+  
 def display_sidebar():
     """Display the sidebar with information and tips"""
     with st.sidebar:
