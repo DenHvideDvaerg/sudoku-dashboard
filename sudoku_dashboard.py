@@ -411,7 +411,7 @@ def clear_manual_input_grid(grid_size):
 def display_puzzle_and_results():
     """Display puzzle and solution in the right column"""
 
-    st.subheader("Current Puzzle")
+    st.subheader("Current Puzzle and Solution")
     if 'current_solver' in st.session_state:
 
         original_col, solved_col = st.columns(2)
@@ -445,7 +445,6 @@ def display_puzzle_and_results():
         with solved_col:
             # Display solution if available
             if 'current_solution' in st.session_state:
-                st.subheader("Solution")
                 display_sudoku_board(st.session_state.current_solution, "Solution")
                 
                 # Solution statistics
